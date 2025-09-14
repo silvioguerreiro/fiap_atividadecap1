@@ -151,3 +151,95 @@ def entrada_dados():
     except ValueError:
         print("\n Entrada inválida para manejo de insumos. Por favor, digite números.")
         return
+
+    # Armazena dados no vetor
+    dados_cultura = {
+        "cultura": cultura,
+        "area": area,
+        "produto": produto,
+        "total_insumo_unidade": total_insumo_unidade,  # mL/g
+        "total_insumo_litros": total_insumo_unidade / 1000,  # L/Kg
+        "figura_geometrica": figura_geometrica
+    }
+    culturas_data[cultura].append(dados_cultura)
+    print("\nDados inseridos com sucesso!")
+
+def saida_dados(cultura_selecionada=None):
+    print("\n= Saída de Dados =")
+    if not culturas_data["soja"] and not culturas_data["milho"]:
+        print("Nenhum dado cadastrado ainda.")
+        return
+
+    culturas_a_exibir = [cultura_selecionada] if cultura_selecionada else culturas_data.keys()
+
+    for cultura in culturas_a_exibir:
+        if cultura in culturas_data and culturas_data[cultura]:
+            print(f"\nDados para {cultura.capitalize()}:")
+            for i, dados in enumerate(culturas_data[cultura]):
+                print(f"  Registro {i+1}:")
+                print(f"    Figura Geométrica: {dados["figura_geometrica"].capitalize()}")
+                print(f"    Área de Plantio: {dados["area"]:.2f} m²")
+                print(f"    Produto Utilizado: {dados["produto"]}")
+                print(f"    Total de Insumo: {dados["total_insumo_unidade"]:.2f} mL/g "
+                      f"({dados["total_insumo_litros"]:.3f} L/Kg)")
+
+def atualizar_dados():
+    print("\n--- Atualização de Dados ---")
+    cultura = escolher_cultura()
+    if not cultura:
+        return
+
+    if not culturas_data[cultura]:
+        print(f"Nenhum dado cadastrado para {cultura} ainda.")
+        return
+
+    saida_dados(cultura) # Passa a cultura selecionada para a função de saída
+    try:
+        indice = int(input(f"\nDigite o número do registro para {cultura} que deseja atualizar: ")) - 1
+        if 0 <= indice < len(culturas_data[cultura]):
+            print(f"Atualizando Registro {indice+1} para {cultura.capitalize()}:")
+            
+            nova_area = input(f"Nova área de plantio (atual: {culturas_data[cultura][indice]["area"]:.2f} m²), deixe em branco para manter: ")
+            if nova_area:
+                culturas_data[cultura][indice]["area"] = float(nova_area)
+
+            novo_produto = input(f"Novo produto (atual: {culturas_data[cultura][indice]["produto"]:.2f} m²), deixe em branco para manter: ")
+            if novo_produto:
+                culturas_data[cultura][indice]["produto"] = novo_produto
+
+            novo_total_insumo = input(f"Novo total de insumo (atual: {culturas_data[cultura][indice]["total_insumo_unidade"]:.2f} Litros/Kg), deixe em branco para manter: ")
+            if novo_total_insumo:
+                culturas_data[cultura][indice]["total_insumo_unidade"] = float(novo_total_insumo)
+
+            print("Dados atualizados com sucesso!")
+        else:
+            print("Índice de registro inválido.")
+    except ValueError:
+        print("\n Entrada inválida. Por favor, digite um número para o índice.")
+
+def deletar_dados():
+    print("\n--- Exclusão de Dados ---")
+    cultura = escolher_cultura()
+    if not cultura:
+        return
+
+    if not culturas_data[cultura]:
+        print(f"Nenhum dado cadastrado para {cultura} ainda.")
+        return
+
+    saida_dados()
+    try:
+        indice = int(input(f"Digite o número do registro para {cultura} que deseja deletar: ")) - 1
+        if 0 <= indice < len(culturas_data[cultura]):
+            del culturas_data[cultura][indice]
+            print("Registro deletado com sucesso!")
+        else:
+            print("Índice de registro inválido.")
+    except ValueError:
+        print("\n Entrada inválida. Por favor, digite um número para o índice.")
+
+def exportar_dados_csv():
+    print("\n= Exportando Dados para CSV =")
+    if not culturas_data["soja"] and not culturas_data["milho"]:
+        print("Nenhum dado para exportar.")
+        return

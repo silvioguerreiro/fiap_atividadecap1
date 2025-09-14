@@ -243,3 +243,79 @@ def exportar_dados_csv():
     if not culturas_data["soja"] and not culturas_data["milho"]:
         print("Nenhum dado para exportar.")
         return
+
+    # 1. Prepara os dados para exportação
+    dados_para_exportar = []
+    for cultura, dados_list in culturas_data.items():
+        for dados in dados_list:
+            registro_formatado = {
+                "Cultura": dados["cultura"].capitalize(),
+                "Figura Geométrica": dados["figura_geometrica"].capitalize(), 
+                "Área (m²)": dados["area"],
+                "Produto Utilizado": dados["produto"],
+                "Total Insumo (mL ou g)": dados["total_insumo_unidade"],
+                "Total Insumo (L ou Kg)": dados["total_insumo_litros"]
+            }
+            dados_para_exportar.append(registro_formatado)
+
+    if not dados_para_exportar:
+        print("Nenhum dado para exportar.")
+        return
+
+    csv_file_name = "Relatorio_Farm.csv"
+    full_path = os.path.abspath(csv_file_name)
+
+    try:
+        keys = dados_para_exportar[0].keys()
+        
+        # Compatibilidade para caracteres especiais
+        with open(full_path, 'w', newline='', encoding='utf-8-sig') as output_file:
+            dict_writer = csv.DictWriter(output_file, fieldnames=keys, delimiter=';')
+            dict_writer.writeheader()
+            dict_writer.writerows(dados_para_exportar)
+        
+        print(f"\nDados exportados com sucesso!")
+        print(f"O arquivo foi salvo em: {full_path}")
+
+    except PermissionError:
+        print(f"\n[ERRO] Permissão negada para salvar o arquivo.")
+        print(f"Verifique se o arquivo '{full_path}' não está aberto no Excel ou outro programa.")
+    except Exception as e:
+        print(f"\nOcorreu um erro inesperado ao exportar o arquivo: {e}")
+
+
+# Item e.
+def menu_principal():
+    print("\n--- Menu Principal ---")
+    print("1. Entrada de dados")
+    print("2. Saída de dados")
+    print("3. Atualização de dados")
+    print("4. Deleção de dados")
+    print("5. Exportar dados para CSV")
+    print("6. Sair do programa")
+
+    choice = input("\nEscolha uma opção: ")
+    return choice
+
+def main():
+    while True:
+        choice = menu_principal()
+
+        if choice == '1':
+            entrada_dados()
+        elif choice == '2':
+            saida_dados()
+        elif choice == '3':
+            atualizar_dados()
+        elif choice == '4':
+            deletar_dados()
+        elif choice == '5':
+            exportar_dados_csv()
+        elif choice == '6':
+            print("Programa encerrado")
+            break
+        else:
+            print("Opção inválida. Tente novamente.")
+
+if __name__ == "__main__":
+    main()

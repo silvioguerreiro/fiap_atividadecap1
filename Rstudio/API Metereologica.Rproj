@@ -1,13 +1,88 @@
-Version: 1.0
+# clima_terminal.R  — Open-Meteo (sem chave), saída texto simples
 
-RestoreWorkspace: Default
-SaveWorkspace: Default
-AlwaysSaveHistory: Default
+suppressPackageStartupMessages({
+  library(httr)
+  library(jsonlite)
+})
 
-EnableCodeIndexing: Yes
-UseSpacesForTab: Yes
-NumSpacesForTab: 2
-Encoding: UTF-8
+cidade <- "Cuiabá"  # ajuste aqui se quiser outra cidade
 
-RnwWeave: Sweave
-LaTeX: pdfLaTeX
+# --- utilidades ---
+wmo_desc <- function(code) {
+  map <- list(
+    `0`="Ceu limpo",
+    `1`="Principalmente limpo",
+    `2`="Parcialmente nublado",
+    `3`="Nublado",
+    `45`="Nevoeiro",
+    `48`="Nevoeiro com gelo",
+    `51`="Garoa fraca", `53`="Garoa moderada", `55`="Garoa intensa",
+    `56`="Garoa congelante fraca", `57`="Garoa congelante intensa",
+    `61`="Chuva fraca", `63`="Chuva moderada", `65`="Chuva forte",
+    `66`="Chuva congelante fraca", `67`="Chuva congelante forte",
+    `71`="Neve fraca", `73`="Neve moderada", `75`="Neve forte",
+    `77`="Graos de neve",
+    `80`="Aguaceiros fracos", `81`="Aguaceiros moderados", `82`="Aguaceiros fortes",
+    `85`="Aguaceiros de neve fracos", `86`="Aguaceiros de neve fortes",
+    `95`="Trovoadas", `96`="Trovoadas com granizo fraco", `99`="Trovoadas com granizo forte"
+  )
+  code_chr <- as.character(code)
+  if (!is.null(map[[code_chr]])) map[[code_chr]] else paste("Condicao WMO", code_chr)
+}
+compass <- function(deg) {
+  dirs <- c("N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW")
+  idx <- floor(((deg %% 360) / 22.5) + 0.5) + 1
+  dirs[((idx - 1) %% length(dirs)) + 1]
+}
+line <- function(ch="-") paste(rep(ch, 58), collapse = "")
+fmt  <- function(x, d=1) ifelse(is.na(x), "NA", format(round(x, d), nsmall=d, trim=TRUE))
+
+# --- 1) geocodificar ---
+geo_url <- modify_url(
+  "https://geocoding-api.open-meteo.com/v1/search",
+  query = list(name = cidade, count = 1, language = "pt", format = "json")
+)
+g <- GET(geo_url); stop_for_status(g)
+g <- fromJSON(content(g, "text", encoding = "UTF-8"))
+if (is.null(g$results) || nrow(g$results) == 0) stop("Cidade nao encontrada.")
+lat <- g$results$latitude[1]; lon <- g$results$longitude[1]
+rotulo <- paste(g$results$name[1], g$results$admin1[1], g$results$country[1], sep = ", ")
+
+# --- 2) clima atual + series horarias ---
+w_url <- modify_url(
+  "https://api.open-meteo.com/v1/forecast",
+  query = list(
+    latitude = lat, longitude = lon,
+    current_weather = "true",
+    hourly = "relative_humidity_2m,apparent_temperature,precipitation",
+    daily = "temperature_2m_max,temperature_2m_min,precipitation_sum",
+    timezone = "auto"
+  )
+)
+w <- GET(w_url); stop_for_status(w)
+w <- fromJSON(content(w, "text", encoding = "UTF-8"))
+
+# --- 3) preparar dados atuais (usar hora mais proxima) ---
+cur <- w$current_weather
+h_times <- as.POSIXct(w$hourly$time, tz = w$timezone)
+now_tz  <- as.POSIXct(format(Sys.time(), tz = w$timezone, usetz = TRUE))
+idx     <- which.min(abs(h_times - now_tz))
+hum     <- suppressWarnings(w$hourly$relative_humidity_2m[idx])
+app     <- suppressWarnings(w$hourly$apparent_temperature[idx])
+prec_hr <- suppressWarnings(w$hourly$precipitation[idx])
+
+# --- 4) imprimir no terminal (texto simples) ---
+cat(line(), "\n")
+cat("CLIMA - Open-Meteo\n")
+cat("Local: ", rotulo, "\n", sep = "")
+cat(line(), "\n")
+cat("AGORA\n")
+cat("  Condicao: ", wmo_desc(cur$weathercode), " (WMO ", cur$weathercode, ")\n", sep = "")
+cat("  Temperatura: ", fmt(cur$temperature), " C\n", sep = "")
+cat("  Sensacao:    ", fmt(app), " C\n", sep = "")
+cat("  Vento:       ", fmt(cur$windspeed), " km/h ", compass(cur$winddirection),
+    " (", round(cur$winddirection), " graus)\n", sep = "")
+cat("  Umidade:     ", ifelse(is.na(hum), "NA", paste0(round(hum), "%")), "\n", sep = "")
+cat("  Chuva hora:  ", fmt(prec_hr, 2), " mm\n", sep = "")
+cat(line(), "\n")
+cat("Fonte: Open-Meteo - https://open-meteo.com/\n")
